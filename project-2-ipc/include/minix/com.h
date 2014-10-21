@@ -78,9 +78,10 @@
 #define DS_PROC_NR   ((endpoint_t) 6)   /* data store server */
 #define MFS_PROC_NR  ((endpoint_t) 7)   /* minix root filesystem */
 #define VM_PROC_NR   ((endpoint_t) 8)   /* memory server */
-#define PFS_PROC_NR  ((endpoint_t) 9)  /* pipe filesystem */
-#define SCHED_PROC_NR ((endpoint_t) 10)	/* scheduler */
-#define LAST_SPECIAL_PROC_NR	11	/* An untyped version for
+#define PFS_PROC_NR  ((endpoint_t) 9)   /* pipe filesystem */
+#define IPC_PROC_NR  ((endpoint_t) 10)  /* ipc service for user apps */
+#define SCHED_PROC_NR ((endpoint_t) 11)	/* scheduler */
+#define LAST_SPECIAL_PROC_NR	12	/* An untyped version for
                                            computation in macros.*/
 #define INIT_PROC_NR ((endpoint_t) LAST_SPECIAL_PROC_NR)  /* init
                                                         -- goes multiuser */
