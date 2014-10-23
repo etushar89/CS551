@@ -21,13 +21,14 @@ static void reply(endpoint_t whom, message *m_ptr);
 
 /* SEF functions and variables. */
 static void sef_local_startup(void);
+int sef_cb_init_fresh(int UNUSED(type), sef_init_info_t *info);
 
 /*===========================================================================*
  *				main                                         *
  *===========================================================================*/
 int main(int argc, char **argv) {
 
-	printf("############## From qIPC ######################");
+
 	/* This is the main routine of this service. The main loop consists of
 	 * three major activities: getting new work, processing the work, and
 	 * sending the reply. The loop never terminates, unless a panic occurs.
@@ -41,6 +42,8 @@ int main(int argc, char **argv) {
 
 	/* Main loop - get work and do it, forever. */
 	while (TRUE) {
+		printf("############## From qIPC ######################");
+		sleep(8000);
 
 		/* Wait for incoming message, sets 'callnr' and 'who'. */
 		get_work(&m);
@@ -125,3 +128,27 @@ message *m_ptr /* message buffer */
 		printf("DS: unable to send reply to %d: %d\n", who_e, s);
 }
 
+/*===========================================================================*
+ *		            sef_cb_init_fresh                                *
+ *===========================================================================*/
+int sef_cb_init_fresh(int UNUSED(type), sef_init_info_t *info)
+{
+/* Initialize the data store server. */
+	int i, r;
+	struct rprocpub rprocpub[18];
+
+	/* Map all the services in the boot image. */
+	if((r = sys_safecopyfrom(RS_PROC_NR, info->rproctab_gid, 0,
+		(vir_bytes) rprocpub, sizeof(rprocpub))) != OK) {
+		panic("sys_safecopyfrom failed: %d", r);
+	}
+//	for(i=0;i < 18;i++) {
+//		if(rprocpub[i].in_use) {
+//			if((r = map_service(&rprocpub[i])) != OK) {
+//				panic("unable to map service: %d", r);
+//			}
+//		}
+//	}
+
+	return(OK);
+}
