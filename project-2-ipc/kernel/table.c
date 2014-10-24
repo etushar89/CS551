@@ -52,7 +52,7 @@ struct boot_image image[NR_BOOT_PROCS] = {
                       
 {DS_PROC_NR,    "ds"    },
 {RS_PROC_NR,    "rs"    },
-                      
+
 {PM_PROC_NR,    "pm"    },
 {SCHED_PROC_NR, "sched" },
 {VFS_PROC_NR,   "vfs"   },
@@ -61,8 +61,8 @@ struct boot_image image[NR_BOOT_PROCS] = {
 {TTY_PROC_NR,   "tty"   },
 {MFS_PROC_NR,   "mfs"   },
 {VM_PROC_NR,    "vm"    },
+{QIPC_PROC_NR,  "qipc"  },
 {PFS_PROC_NR,   "pfs"   },
-{IPC_PROC_NR,   "qipc"   },
 {INIT_PROC_NR,  "init"  },
 };
 

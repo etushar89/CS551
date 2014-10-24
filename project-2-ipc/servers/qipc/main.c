@@ -22,6 +22,7 @@ static void reply(endpoint_t whom, message *m_ptr);
 /* SEF functions and variables. */
 static void sef_local_startup(void);
 int sef_cb_init_fresh(int UNUSED(type), sef_init_info_t *info);
+int map_service(const struct rprocpub *rpub);
 
 /*===========================================================================*
  *				main                                         *
@@ -49,6 +50,8 @@ int main(int argc, char **argv) {
 		/* Wait for incoming message, sets 'callnr' and 'who'. */
 		get_work(&m);
 
+		printf("############## From qIPC ######################");
+
 		if (is_notify(callnr)) {
 			printf("DS: warning, got illegal notify from: %d\n", m.m_source);
 			result = EINVAL;
@@ -56,35 +59,36 @@ int main(int argc, char **argv) {
 		}
 
 		switch (callnr) {
-		//	      case DS_PUBLISH:
-		//	          result = do_publish(&m);
-		//	          break;
-		//	      case DS_RETRIEVE:
-		//		  result = do_retrieve(&m);
-		//		  break;
-		//	      case DS_RETRIEVE_LABEL:
-		//		  result = do_retrieve_label(&m);
-		//		  break;
-		//	      case DS_DELETE:
-		//		  result = do_delete(&m);
-		//		  break;
-		//	      case DS_SUBSCRIBE:
-		//		  result = do_subscribe(&m);
-		//		  break;
-		//	      case DS_CHECK:
-		//		  result = do_check(&m);
-		//		  break;
-		//	      case COMMON_GETSYSINFO:
-		//		  result = do_getsysinfo(&m);
-		//		  break;
-		//	      default:
-		//	          printf("DS: warning, got illegal request from %d\n", m.m_source);
-		//	          result = EINVAL;
+			      case DS_PUBLISH:
+			          result = OK;
+			          break;
+			      case DS_RETRIEVE:
+				  result = OK;
+				  break;
+			      case DS_RETRIEVE_LABEL:
+				  result = OK;
+				  break;
+			      case DS_DELETE:
+				  result = OK;
+				  break;
+			      case DS_SUBSCRIBE:
+				  result = OK;
+				  break;
+			      case DS_CHECK:
+				  result = OK;
+				  break;
+			      case COMMON_GETSYSINFO:
+				  result = OK;
+				  break;
+			      default:
+			          printf("DS: warning, got illegal request from %d : %d\n", m.m_source, callnr);
+			          result = EINVAL;
 		}
 
 		send_reply:
 		/* Finally send reply message, unless disabled. */
 		if (result != EDONTREPLY) {
+			result = OK;
 			m.m_type = result; /* build reply message */
 			reply(who_e, &m); /* send it away */
 		}
@@ -122,7 +126,7 @@ static void get_work(message *m_ptr /* message buffer */
  *				reply					     *
  *===========================================================================*/
 static void reply(endpoint_t who_e, /* destination */
-message *m_ptr /* message buffer */
+		message *m_ptr /* message buffer */
 ) {
 	int s = send(who_e, m_ptr); /* send the message */
 	if (OK != s)
@@ -134,22 +138,52 @@ message *m_ptr /* message buffer */
  *===========================================================================*/
 int sef_cb_init_fresh(int UNUSED(type), sef_init_info_t *info)
 {
-/* Initialize the data store server. */
-//	int i, r;
-//	struct rprocpub rprocpub[18];
-//
-//	/* Map all the services in the boot image. */
-//	if((r = sys_safecopyfrom(RS_PROC_NR, info->rproctab_gid, 0,
-//		(vir_bytes) rprocpub, sizeof(rprocpub))) != OK) {
-//		panic("sys_safecopyfrom failed: %d", r);
-//	}
-//	for(i=0;i < 18;i++) {
-//		if(rprocpub[i].in_use) {
-//			if((r = map_service(&rprocpub[i])) != OK) {
-//				panic("unable to map service: %d", r);
-//			}
-//		}
-//	}
+	int i, r;
+	struct rprocpub rprocpub[18];
+
+	/* Map all the services in the boot image. */
+	if((r = sys_safecopyfrom(RS_PROC_NR, info->rproctab_gid, 0,
+			(vir_bytes) rprocpub, sizeof(rprocpub))) != OK) {
+		panic("sys_safecopyfrom failed: %d", r);
+	}
+
+	for(i=0;i < 18;i++) {
+			if(rprocpub[i].in_use) {
+				if((r = map_service(&rprocpub[i])) != OK) {
+					panic("unable to map service: %d", r);
+				}
+			}
+		}
+	return(OK);
+}
+
+int map_service(rpub)
+struct rprocpub *rpub;
+{
+/* Map a new service by registering a new acl entry if required.
+	int i;
+
+	 Stop right now if no pci device or class is found.
+	if(rpub->pci_acl.rsp_nr_device == 0
+		&& rpub->pci_acl.rsp_nr_class == 0) {
+		return(OK);
+	}
+
+	 Find a free acl slot.
+	for (i= 0; i<NR_DRIVERS; i++)
+	{
+		if (!pci_acl[i].inuse)
+			break;
+	}
+	if (i >= NR_DRIVERS)
+	{
+		printf("PCI: map_service: table is full\n");
+		return ENOMEM;
+	}
+
+	 Initialize acl slot.
+	pci_acl[i].inuse = 1;
+	pci_acl[i].acl = rpub->pci_acl;*/
 
 	return(OK);
 }

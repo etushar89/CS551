@@ -78,8 +78,8 @@
 #define DS_PROC_NR   ((endpoint_t) 6)   /* data store server */
 #define MFS_PROC_NR  ((endpoint_t) 7)   /* minix root filesystem */
 #define VM_PROC_NR   ((endpoint_t) 8)   /* memory server */
-#define PFS_PROC_NR  ((endpoint_t) 9)   /* pipe filesystem */
-#define IPC_PROC_NR  ((endpoint_t) 10)  /* ipc service for user apps */
+#define QIPC_PROC_NR ((endpoint_t) 9)  /* ipc service for user apps */
+#define PFS_PROC_NR  ((endpoint_t) 10)   /* pipe filesystem */
 #define SCHED_PROC_NR ((endpoint_t) 11)	/* scheduler */
 #define LAST_SPECIAL_PROC_NR	12	/* An untyped version for
                                            computation in macros.*/
@@ -1280,5 +1280,20 @@
 /* Bits in 'BDEV_FLAGS' field of block device transfer requests. */
 #  define BDEV_NOFLAGS		0x00	/* no flags are set */
 #  define BDEV_FORCEWRITE	0x01	/* force write to disk immediately */
+
+/*===========================================================================*
+ *			Messages for QIPC		     *
+ *===========================================================================*/
+
+/* Base type for block device requests and responses. */
+#define QIPC_RQ_BASE	0x1600
+#define QIPC_RS_BASE	0x1680
+
+/* Message types for block device requests. */
+#define QIPC_OPEN	(QIPC_RQ_BASE + 0)	/* open a minor device */
+#define QIPC_CLOSE	(QIPC_RQ_BASE + 1)	/* close a minor device */
+
+/* Message types for block device responses. */
+#define QIPC_REPLY	(BDEV_RS_BASE + 0)	/* general reply code */
 
 /* _MINIX_COM_H */

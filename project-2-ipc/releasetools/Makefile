@@ -30,8 +30,8 @@ PROGRAMS+= ${PROGROOT}/drivers/log/log
 PROGRAMS+= ${PROGROOT}/drivers/tty/tty
 PROGRAMS+= ${PROGROOT}/servers/mfs/mfs
 PROGRAMS+= ${PROGROOT}/servers/vm/vm
-PROGRAMS+= ${PROGROOT}/servers/pfs/pfs
 PROGRAMS+= ${PROGROOT}/servers/qipc/qipc
+PROGRAMS+= ${PROGROOT}/servers/pfs/pfs
 PROGRAMS+= ${PROGROOT}/servers/init/init
 
 usage:	

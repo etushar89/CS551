@@ -513,6 +513,17 @@ struct rproc *rp;
 
   /* Set the scheduler for this process */
   if ((s = sched_init_proc(rp)) != OK) {
+	  printf("TRS: r_exec: %s\n", rp->r_exec);
+	  printf("TRS: r_args: %s\n", rp->r_args);
+	  printf("TRS: r_cmd: %s\n", rp->r_cmd);
+	  printf("TRS: r_priority: %d\n", rp->r_priority);
+	  printf("TRS: r_scheduler: %d\n", rp->r_scheduler);
+
+	  if (rp->r_scheduler == KERNEL)
+		printf("TRS: KERNEL: %s\n");
+	  if(rp->r_scheduler == NONE)
+		  printf("TRS: NONE \n");
+
 	printf("RS: unable to start scheduling: %d\n", s);
 	cleanup_service(rp);
 	vm_memctl(RS_PROC_NR, VM_RS_MEM_PIN);
