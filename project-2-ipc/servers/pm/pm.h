@@ -26,3 +26,4 @@
 #include "type.h"
 #include "proto.h"
 #include "glo.h"
+#include "qipc.h"

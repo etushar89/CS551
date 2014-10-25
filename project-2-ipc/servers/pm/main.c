@@ -39,6 +39,8 @@
 EXTERN unsigned long calls_stats[NCALLS];
 #endif
 
+char* qipc_msg[10];
+
 static void sendreply(void);
 static int get_nice_value(int queue);
 static void handle_vfs_reply(void);
@@ -50,6 +52,7 @@ static void handle_vfs_reply(void);
 static void sef_local_startup(void);
 static int sef_cb_init_fresh(int type, sef_init_info_t *info);
 static int sef_cb_signal_manager(endpoint_t target, int signo);
+static void qipc_init();
 
 /*===========================================================================*
  *				main					     *
@@ -61,6 +64,9 @@ int main()
 
   /* SEF local startup. */
   sef_local_startup();
+
+  /* QIPC Startup. */
+  qipc_init();
 
   /* This is PM's main loop-  get work and do it, forever and forever. */
   while (TRUE) {
@@ -163,6 +169,17 @@ static void sef_local_startup()
 
   /* Let SEF perform startup. */
   sef_startup();
+}
+
+/*===========================================================================*
+ *			       qipc_init			     *
+ *===========================================================================*/
+static void qipc_init()
+{
+  int i;
+  for(i=0;i<2;i++) {
+	  qipc_msg[i] = (char*) malloc(10);
+  }
 }
 
 /*===========================================================================*
