@@ -113,5 +113,9 @@
 				 * really a standalone call.
 				 */
 #define MAPDRIVER      122     /* to VFS, map a device */
+
+/* QIPC Calls */
 #define OPENQ	44
 #define CLOSEQ	45
+#define SETATTRQ	56
+#define GETATTRQ	57

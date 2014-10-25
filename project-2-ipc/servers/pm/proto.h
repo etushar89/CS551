@@ -108,3 +108,5 @@ void do_sendmsg();
 void do_receive_msg();
 int do_open_q();
 int do_close_q();
+int do_set_attr_q();
+int do_get_attr_q();

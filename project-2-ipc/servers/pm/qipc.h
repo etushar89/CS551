@@ -8,10 +8,10 @@
 #ifndef QIPC_H_
 #define QIPC_H_
 
-#define QIPC_MAX_MSG_LEN 16	//String message data max length
-#define QIPC_MAX_Q_NAME_LEN 16	//Queue name max length
+#define QIPC_MAX_MSG_LEN 8	//String message data max length
+#define QIPC_MAX_Q_NAME_LEN 8	//Queue name max length
 #define QIPC_MAX_Q_COUNT 4	//Maximum number of queues that can be present at a time in system
-#define QIPC_MAX_Q_MSG_CAP 16	//Maximum number of messages in one queue
+#define QIPC_MAX_Q_MSG_CAP 8	//Maximum number of messages in one queue
 
 #define BLOCKING	1
 #define NON_BLOCKING	0
@@ -28,6 +28,8 @@
 #define MSG_REC_FAIL	8
 #define QUEUE_NOT_EXIST	9
 #define QUEUE_CLOSE_SUCCESS	10
+#define QUEUE_UPDATE_SUCCESS	11
+#define QUEUE_UPDATE_FAIL	12
 
 typedef struct qipc_qattr {
 	int capacity;         // maximum message capacity of the queue
