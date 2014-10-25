@@ -33,7 +33,7 @@ typedef struct {int m10i1, m10i2, m10i3, m10i4;
 	long m10l1, m10l2, m10l3; } mess_10;
 
 //Message type for QIPC messages
-typedef struct {int m11i1, m11i2; time_t m11t1;
+typedef struct {int m11i1, m11i2, m11i3; time_t m11t1;
 		int* m11e1; char *m11ca1;} mess_11;
 
 typedef struct {
@@ -136,6 +136,7 @@ typedef struct {
 
 #define m11_i1  m_u.m_m11.m11i1
 #define m11_i2  m_u.m_m11.m11i2
+#define m11_i3  m_u.m_m11.m11i3
 #define m11_t1  m_u.m_m11.m11t1
 #define m11_e1  m_u.m_m11.m11e1
 #define m11_ca1  m_u.m_m11.m11ca1

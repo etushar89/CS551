@@ -11,12 +11,12 @@
 void do_sendmsg() {
 	qmsg *t = get_qipc_msg();
 	strcpy(qipc_msg[0],t->data);
-	sys_datacopy(SELF, (vir_bytes)  t->data, SELF,(vir_bytes) qipc_msg[0], 10);
+	sys_datacopy(SELF, (vir_bytes)  t->data, SELF,(vir_bytes) qipc_msg[0], t->dataLen);
 	printf("Saved message: %s\n",qipc_msg[0]);
 }
 
 void do_receive_msg() {
-	sys_datacopy(SELF, (vir_bytes)  qipc_msg[0], who_e,(vir_bytes) m_in.m11_ca1, 10);
+	sys_datacopy(SELF, (vir_bytes)  qipc_msg[0], who_e,(vir_bytes) m_in.m11_ca1, QIPC_MAX_MSG_LEN);
 }
 
 /*
@@ -49,31 +49,40 @@ void do_mq_getaatr() {
 }
 */
 
+/**
+ * Convert Incoming IPC Message into incoming QPIC specific queue message
+ *
+ */
 qmsg * get_qipc_msg() {
 	qmsg *tmp = (qmsg *) malloc(sizeof(qmsg));
 	if(tmp!=NULL) {
-		tmp->data = (char *) malloc(strlen(m_in.m11_ca1) * sizeof(char));
-		sys_datacopy(who_e, (vir_bytes)  m_in.m11_ca1, SELF,(vir_bytes) tmp->data, 10);
+		tmp->dataLen = cap_msg_len(m_in.m11_i3);
+		tmp->data = (char *) malloc(tmp->dataLen);
+		sys_datacopy(who_e, (vir_bytes)  m_in.m11_ca1, SELF,(vir_bytes) tmp->data, tmp->dataLen);
 		tmp->senderId = m_in.m_source;
 		tmp->expiryts = m_in.m11_t1;
 		tmp->priority = m_in.m11_i1;
 		tmp->rests = clock_time();
 		tmp->recieverCount = m_in.m11_i2;
-		int i;
-		for(i=0; i < (tmp->recieverCount);i++) {
-			tmp->recieverIds[i] = *(m_in.m11_e1 + (i * sizeof(int)));
-		}
+		tmp->recieverIds = (int *) malloc(tmp->recieverCount * sizeof(int));
+		sys_datacopy(who_e, (vir_bytes)  m_in.m11_e1, SELF,(vir_bytes) tmp->recieverIds, tmp->recieverCount * sizeof(int));
 	}
 	return tmp;
 }
 
+/**
+ *  Avoid buffer overrun
+ */
+int cap_msg_len(int len) {
+	printf("WARN: Message length is more than %d, message will be truncated.", QIPC_MAX_MSG_LEN);
+	return ( len > QIPC_MAX_MSG_LEN) ? QIPC_MAX_MSG_LEN : len;
+}
+
+/**
+ * Get system's current time
+ */
 time_t clock_time()
 {
-/* This routine returns the time in seconds since 1.1.1970.  MINIX is an
- * astrophysically naive system that assumes the earth rotates at a constant
- * rate and that such things as leap seconds do not exist.
- */
-
   register int k;
   clock_t uptime;
   time_t boottime;
