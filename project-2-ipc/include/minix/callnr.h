@@ -113,3 +113,5 @@
 				 * really a standalone call.
 				 */
 #define MAPDRIVER      122     /* to VFS, map a device */
+#define OPENQ	44
+#define CLOSEQ	45

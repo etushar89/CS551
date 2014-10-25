@@ -106,3 +106,5 @@ void tell_vfs(struct mproc *rmp, message *m_ptr);
 
 void do_sendmsg();
 void do_receive_msg();
+int do_open_q();
+int do_close_q();

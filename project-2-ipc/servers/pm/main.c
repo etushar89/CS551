@@ -40,6 +40,8 @@ EXTERN unsigned long calls_stats[NCALLS];
 #endif
 
 char* qipc_msg[2];
+int queue_count;
+Queue* queue_arr[QIPC_MAX_Q_COUNT];
 
 static void sendreply(void);
 static int get_nice_value(int queue);
@@ -180,6 +182,10 @@ static void qipc_init()
   for(i=0;i<2;i++) {
 	  qipc_msg[i] = (char*) malloc(QIPC_MAX_MSG_LEN);
   }
+  for(i=0;i<QIPC_MAX_Q_COUNT;i++) {
+	  queue_arr[i] = NULL;
+  }
+  queue_count = 0;
 }
 
 /*===========================================================================*
