@@ -195,7 +195,7 @@ int add_to_queue(Queue *q, Qmsg *m) {
  *  m_in.m11_ca1 = Queue Name
  *
  *Outgoing IPC Message format:
- *	m_in.m11_ca1 = Message from sender, if any
+ *	m_in.m11_ca2 = Message from sender, if any
  *	(libc should check return value of this sys call)
  *
  */
@@ -232,6 +232,7 @@ int do_res_mg_q() {
 
 		if(msgnode) {
 			printf("DEBUG: Found message: %s", msgnode->msg->data);
+			sys_datacopy(SELF, (vir_bytes)  msgnode->msg->data, who_e,(vir_bytes) m_in.m11_ca2, msgnode->msg->dataLen);
 			msgnode->msg->pendingreceiverCount--;
 			if(msgnode->msg->pendingreceiverCount==0) {
 				remove_node(q, msgnode);
