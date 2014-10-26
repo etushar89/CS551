@@ -37,20 +37,20 @@ typedef struct qipc_qattr {
 	int blocking;	//queue type, blocking or non-blocking	//TODO Remove this
 	int q_name_len;	//queue type, blocking or non-blocking
 	char* name;	//name of the queue
-	endpoint_t owner;	//the process id of the oqner
+	pid_t owner;	//the process id of the oqner
 	time_t creationtime;	//message received timestamp
 } QueueAttr;
 
 typedef struct qipc_message {
-	int no;         // message number in message queue TODO: Remove this
 	char* data;	//message payload
-	endpoint_t senderId;	//sender of the message
-	endpoint_t *recieverIds;	//receivers intended by this message
+	pid_t senderId;	//sender of the message
+	pid_t *recieverIds;	//receivers intended by this message
 	int priority;	//priority of the message
 	int dataLen;	//priority of the message
 	time_t expiryts;	//message expiry timestamp
 	time_t rests;	//message received timestamp
-	int recieverCount;	// how many processes are yet to consume the message
+	int recieverCount;	// total number f processes which are expected to consume this message
+	int pendingreceiverCount;	// how many processes are yet to consume the message
 } Qmsg;
 
 typedef struct QueueNode {
@@ -76,10 +76,13 @@ int get_empty_q_slot();
 int check_queue_exist(char *);
 Queue * get_queue(char *);
 int add_to_queue(Queue *, Qmsg *);
+Qnode *get_msg_from_queue(Queue *, endpoint_t, endpoint_t);
 int clear_queue_entry(char *);
 void clear_queue_entry_idx(int);
+void remove_node(Queue *, Qnode *);
 
 void debug_list();
+void debug_queue(Queue *);
 
 //stdlib funcs
 void free(void *ptr);
