@@ -161,6 +161,20 @@ int do_set_attr_q() {
 	return QUEUE_NOT_EXIST;
 }
 
+/**
+ *	Gets attributes of a queue (CALLNR GETATTRQ	57)
+ *
+ *Incoming IPC Message format:
+ *  m_in.m11_i1 = Queue name len
+ *  m_in.m11_ca2 = Queue Name
+ *
+ *Outgoing IPC Message format:
+ *  mp_reply.m2_i1 = Current Queue Capacity
+ *  mp_reply.m2_i2 = Curent Queue Type Blocking/Non-Blocking
+ *
+ *	(libc should check return value of this sys call)
+ *
+ */
 int do_get_attr_q() {
 	register struct mproc *rmp = mp;
 	int q_name_len = m_in.m11_i1 > QIPC_MAX_Q_NAME_LEN ? QIPC_MAX_Q_NAME_LEN : m_in.m11_i1;
