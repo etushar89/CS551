@@ -118,7 +118,7 @@ int do_close_q() {
 }
 
 /**
- *	Adds new message to a queue (CALLNR CLOSEQ 45)
+ *	Adds new message to a queue (CALLNR SENDMSGQ 69)
  *
  *Incoming IPC Message format:
  *  m_in.m11_i1 = Message receiver Count
