@@ -60,6 +60,8 @@ int do_open_q() {
 	q->attr->owner = who_e;
 	printf("\nDEBUG: Owner : %d", q->attr->owner);
 	q->attr->creationtime = clock_time();
+	q->HEAD = NULL;
+	q->TAIL = NULL;
 
 	queue_arr[idx] = q;
 	m_in.m11_i1 = q->attr->q_name_len;
@@ -99,6 +101,7 @@ int do_close_q() {
 		Queue *q1=queue_arr[indx];
 		//endpoint_t qowner = q1->attr->owner;
 		//if(qowner == who_e) {
+		q1 = NULL;
 		free(q1);
 		clear_queue_entry_idx(indx);
 		printf("\nINFO: Queue named %s deleted.", name);
@@ -125,6 +128,7 @@ int do_close_q() {
  *  m_in.m11_i2 = Message priority
  *  m_in.m11_i3 = Message length
  *  m_in.m11_ca1 = Queue Name
+ *  m_in.m11_ca2 = String data
  *
  *Outgoing IPC Message format:
  *	<nothing>
@@ -146,18 +150,19 @@ int do_send_mg_q() {
 		debug_list();
 		Queue *q = queue_arr[indx];
 		if(q->attr->currentcount==q->attr->capacity) {
-			printf("\nERROR: Queue %s has reached its maximum message capacity of %d.", name, indx);
+			printf("\nERROR: Queue %s has reached its maximum message capacity of %d.", name, q->attr->capacity);
 			return MSG_ADD_QUEUE_FULL;
 		}
 		Qmsg *m = get_qipc_msg();
 		if(add_to_queue(q, m)==0) {
-			q->attr->currentcount++;
 			printf("\nINFO: New message %s successfully added to queue %s.", m->data, name);
 			return MSG_ADD_SUCCESS;
-		} else
+		} else {
+			printf("\nERROR: Failed to add message to queue %s.", name);
 			return MSG_ADD_FAIL;
+		}
 	} else {
-		printf("\ERROR: Queue named %s does not exist.", name);
+		printf("\nERROR: Queue named %s does not exist.", name);
 		debug_list();
 		printf("\nDEBUG: Total queues : %d", queue_count);
 		return QUEUE_NOT_EXIST;
@@ -183,16 +188,23 @@ int add_to_queue(Queue *q, Qmsg *m) {
 		q->HEAD = mnode;
 		q->TAIL = mnode;
 	} else {
-		Qnode *tmp = q->HEAD;
-		while(tmp->next != NULL) {
-			tmp = tmp->next;
-		}
-		mnode->prev = tmp;
-		tmp->next = mnode;
+		mnode->prev = q->TAIL;
 		q->TAIL = mnode;
 	}
 
 	q->attr->currentcount++;
+
+	Qnode *tmp1 = q->HEAD;
+	printf("\nDEBUG:");
+	if(tmp1!=NULL) {
+		printf(" Data = %s",tmp1->msg->data);
+		while(tmp1->next != NULL) {
+			printf(" Data = %s",tmp1->msg->data);
+			tmp1 = tmp1->next;
+		}
+	} else
+		printf("\nDEBUG: tmp is NULL ");
+
 	printf("\nDEBUG: Total number of message is queue %s are %d ",q->attr->name,q->attr->currentcount);
 	return 0;
 }
@@ -335,13 +347,10 @@ int get_empty_q_slot() {
  *  Check if a queue exists. If yes, return its index.
  */
 int check_queue_exist(char *queue_name) {
-	printf("\nDEBUG: check_queue_exist : %s", queue_name);
 	int i;
 	for(i=0;i<QIPC_MAX_Q_COUNT;i++) {
 		  if(queue_arr[i]!=NULL) {
-			  printf("\nDEBUG: check_queue_exist strcmp %s == %s", queue_name, queue_arr[i]->attr->name);
 			  if(!strcmp(queue_arr[i]->attr->name, queue_name)) {
-				  printf("\nDEBUG: Queue exists at %d with name %s", i, queue_name);
 				  return i;
 			  }
 		  }
@@ -373,15 +382,27 @@ Qmsg * get_qipc_msg() {
 	Qmsg *tmp = (Qmsg *) malloc(sizeof(Qmsg));
 	if(tmp!=NULL) {
 		tmp->dataLen = cap_msg_len(m_in.m11_i3);
+		printf("\nDEBUG: In Data Len = %d", m_in.m11_i3);
 		tmp->data = (char *) malloc(tmp->dataLen);
-		sys_datacopy(who_e, (vir_bytes)  m_in.m11_ca1, SELF,(vir_bytes) tmp->data, tmp->dataLen);
+		sys_datacopy(who_e, (vir_bytes)  m_in.m11_ca2, SELF,(vir_bytes) tmp->data, tmp->dataLen);
+		printf("\nDEBUG: Data = %s", tmp->data);
 		tmp->senderId = m_in.m_source;
+		printf("\nDEBUG: Sender = %d", tmp->senderId);
 		tmp->expiryts = m_in.m11_t1;
+		printf("\nDEBUG: Expiry ts = %d", tmp->expiryts);
 		tmp->priority = m_in.m11_i2;
+		printf("\nDEBUG: Priority = %d", tmp->priority);
 		tmp->rests = clock_time();
+		printf("\nDEBUG: Rec ts = %d", tmp->rests);
 		tmp->recieverCount = m_in.m11_i1;
+		printf("\nDEBUG: Receiver cnt = %d", tmp->recieverCount);
 		tmp->recieverIds = (int *) malloc(tmp->recieverCount * sizeof(int));
 		sys_datacopy(who_e, (vir_bytes)  m_in.m11_e1, SELF,(vir_bytes) tmp->recieverIds, tmp->recieverCount * sizeof(int));
+
+		int ii;
+		for(ii=0; ii<tmp->recieverCount; ii++) {
+			printf("\nDEBUG: Rec %d = %d",ii, tmp->recieverIds[ii]);
+		}
 	}
 	return tmp;
 }
@@ -390,8 +411,11 @@ Qmsg * get_qipc_msg() {
  *  Avoid buffer overrun
  */
 int cap_msg_len(int len) {
-	printf("\nWARN: Message length is more than %d, message will be truncated.", QIPC_MAX_MSG_LEN);
-	return ( len > QIPC_MAX_MSG_LEN) ? QIPC_MAX_MSG_LEN : len;
+	if(len > QIPC_MAX_MSG_LEN) {
+		printf("\nWARN: Message length is more than %d, message will be truncated.", QIPC_MAX_MSG_LEN);
+		return QIPC_MAX_MSG_LEN;
+	}
+	return len;
 }
 
 /**

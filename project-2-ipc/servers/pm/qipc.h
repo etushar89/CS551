@@ -34,7 +34,7 @@
 typedef struct qipc_qattr {
 	int capacity;         // maximum message capacity of the queue
 	int currentcount;         // number of messages present in queue
-	int blocking;	//queue type, blocking or non-blocking
+	int blocking;	//queue type, blocking or non-blocking	//TODO Remove this
 	int q_name_len;	//queue type, blocking or non-blocking
 	char* name;	//name of the queue
 	endpoint_t owner;	//the process id of the oqner
@@ -42,7 +42,7 @@ typedef struct qipc_qattr {
 } QueueAttr;
 
 typedef struct qipc_message {
-	int no;         // message number in message queue
+	int no;         // message number in message queue TODO: Remove this
 	char* data;	//message payload
 	endpoint_t senderId;	//sender of the message
 	endpoint_t *recieverIds;	//receivers intended by this message
