@@ -389,17 +389,6 @@ int do_get_attr_q() {
 	return QUEUE_NOT_EXIST;
 }
 
-void do_sendmsg() {
-	Qmsg *t = get_qipc_msg();
-	strcpy(qipc_msg[0],t->data);
-	sys_datacopy(SELF, (vir_bytes)  t->data, SELF,(vir_bytes) qipc_msg[0], t->dataLen);
-	printf("\nSaved message: %s\n",qipc_msg[0]);
-}
-
-void do_receive_msg() {
-	sys_datacopy(SELF, (vir_bytes)  qipc_msg[0], who_e,(vir_bytes) m_in.m11_ca1, QIPC_MAX_MSG_LEN);
-}
-
 /**
  *  Get a queue with specific name
  */
