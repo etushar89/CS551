@@ -189,6 +189,7 @@ int add_to_queue(Queue *q, Qmsg *m) {
 		q->TAIL = mnode;
 	} else {
 		mnode->prev = q->TAIL;
+		q->TAIL->next = mnode;
 		q->TAIL = mnode;
 	}
 
@@ -199,8 +200,8 @@ int add_to_queue(Queue *q, Qmsg *m) {
 	if(tmp1!=NULL) {
 		printf(" Data = %s",tmp1->msg->data);
 		while(tmp1->next != NULL) {
-			printf(" Data = %s",tmp1->msg->data);
 			tmp1 = tmp1->next;
+			printf(" Data = %s",tmp1->msg->data);
 		}
 	} else
 		printf("\nDEBUG: tmp is NULL ");
