@@ -110,3 +110,5 @@ int do_open_q();
 int do_close_q();
 int do_set_attr_q();
 int do_get_attr_q();
+int do_send_mg_q();
+int do_res_mg_q();

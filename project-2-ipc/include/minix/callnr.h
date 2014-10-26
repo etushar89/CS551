@@ -119,3 +119,5 @@
 #define CLOSEQ	45
 #define SETATTRQ	56
 #define GETATTRQ	57
+#define SENDMSGQ	69
+#define RESMSGQ	70

@@ -54,9 +54,9 @@ typedef struct qipc_message {
 } Qmsg;
 
 typedef struct QueueNode {
-	struct qmsg *msg;
-	struct Qnode *prev;
-	struct Qnode *next;
+	Qmsg *msg;
+	struct QueueNode *prev;
+	struct QueueNode *next;
 } Qnode;
 
 typedef struct Queue {
@@ -73,10 +73,11 @@ time_t clock_time();
 Qmsg * get_qipc_msg();
 int cap_msg_len();
 int get_empty_q_slot();
-int check_queue_exist(char *queue_name);
-Queue * get_queue(char *queue_name);
-int clear_queue_entry(char *queue_name);
-void clear_queue_entry_idx(int index);
+int check_queue_exist(char *);
+Queue * get_queue(char *);
+int add_to_queue(Queue *, Qmsg *);
+int clear_queue_entry(char *);
+void clear_queue_entry_idx(int);
 
 void debug_list();
 
@@ -85,5 +86,6 @@ void free(void *ptr);
 void *malloc(size_t size);
 int strcmp(const char *s1, const char *s2);
 char *strcpy(char *to, const char *from);
+size_t strlen(const char *str);
 
 #endif /* QIPC_H_ */

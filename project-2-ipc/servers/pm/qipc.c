@@ -13,7 +13,6 @@
  *	Creates a new queue (CALLNR OPENQ 44)
  *
  *Incoming IPC Message format:
- *  m_in.m11_i1 = Queue name length
  *  m_in.m11_i2 = Queue Capacity
  *  m_in.m11_i3 = Queue Type Blocking/Non-Blocking
  *  m_in.m11_ca1 = Queue Name
@@ -25,8 +24,7 @@
  *
  */
 int do_open_q() {
-
-	register struct mproc *rmp = mp;
+	//register struct mproc *rmp = mp;
 
 	//check if new queue can be created
 	int idx = get_empty_q_slot();
@@ -39,10 +37,10 @@ int do_open_q() {
 
 	Queue *q = (Queue *) malloc(sizeof(Queue));
 	q->attr = (QueueAttr *) malloc(sizeof(QueueAttr));
-	q->attr->q_name_len = m_in.m11_i1 > QIPC_MAX_Q_NAME_LEN ? QIPC_MAX_Q_NAME_LEN : m_in.m11_i1;
 
-	q->attr->name = (char *) malloc(q->attr->q_name_len);
-	sys_datacopy(who_e, (vir_bytes)  m_in.m11_ca1, SELF,(vir_bytes) q->attr->name, q->attr->q_name_len);
+	q->attr->name = (char *) malloc(QIPC_MAX_Q_NAME_LEN);
+	sys_datacopy(who_e, (vir_bytes)  m_in.m11_ca1, SELF,(vir_bytes) q->attr->name, QIPC_MAX_Q_NAME_LEN);
+	q->attr->q_name_len = strlen(q->attr->name);
 
 	if(check_queue_exist(q->attr->name)>=0) {
 		printf("\nERROR: Queue named %s already exists.", q->attr->name);
@@ -78,7 +76,6 @@ int do_open_q() {
  *	Closes a queue (CALLNR CLOSEQ 45)
  *
  *Incoming IPC Message format:
- *  m_in.m11_i1 = Queue name length
  *  m_in.m11_ca1 = Queue Name
  *
  *Outgoing IPC Message format:
@@ -88,11 +85,10 @@ int do_open_q() {
  */
 int do_close_q() {
 
-	int q_name_len = m_in.m11_i1 > QIPC_MAX_Q_NAME_LEN ? QIPC_MAX_Q_NAME_LEN : m_in.m11_i1;
-	char *name = (char *) malloc(q_name_len);
-	sys_datacopy(who_e, (vir_bytes)  m_in.m11_ca1, SELF,(vir_bytes) name, q_name_len);
+	char *name = (char *) malloc(QIPC_MAX_Q_NAME_LEN);
+	sys_datacopy(who_e, (vir_bytes)  m_in.m11_ca1, SELF,(vir_bytes) name, QIPC_MAX_Q_NAME_LEN);
 
-	printf("\nDEBUG: q->attr->q_name_len = %d", q_name_len);
+	printf("\nDEBUG: q->attr->q_name_len = %d", strlen(name));
 	printf("\nDEBUG: q->attr->name = %s", name);
 
 	int indx = check_queue_exist(name);
@@ -122,10 +118,93 @@ int do_close_q() {
 }
 
 /**
+ *	Adds new message to a queue (CALLNR CLOSEQ 45)
+ *
+ *Incoming IPC Message format:
+ *  m_in.m11_i1 = Message receiver Count
+ *  m_in.m11_i2 = Message priority
+ *  m_in.m11_i3 = Message length
+ *  m_in.m11_ca1 = Queue Name
+ *
+ *Outgoing IPC Message format:
+ *	<nothing>
+ *	(libc should check return value of this sys call)
+ *
+ */
+int do_send_mg_q() {
+
+	char *name = (char *) malloc(QIPC_MAX_Q_NAME_LEN);
+	sys_datacopy(who_e, (vir_bytes)  m_in.m11_ca1, SELF,(vir_bytes) name, QIPC_MAX_Q_NAME_LEN);
+
+	printf("\nDEBUG: q->attr->q_name_len = %d", strlen(name));
+	printf("\nDEBUG: q->attr->name = %s", name);
+
+	int indx = check_queue_exist(name);
+	printf("\nDEBUG: index = %d", indx);
+	if(indx>=0) {
+		printf("\nDEBUG: Queue %s to which message is to be added found at %d.", name, indx);
+		debug_list();
+		Queue *q = queue_arr[indx];
+		if(q->attr->currentcount==q->attr->capacity) {
+			printf("\nERROR: Queue %s has reached its maximum message capacity of %d.", name, indx);
+			return MSG_ADD_QUEUE_FULL;
+		}
+		Qmsg *m = get_qipc_msg();
+		if(add_to_queue(q, m)==0) {
+			q->attr->currentcount++;
+			printf("\nINFO: New message %s successfully added to queue %s.", m->data, name);
+			return MSG_ADD_SUCCESS;
+		} else
+			return MSG_ADD_FAIL;
+	} else {
+		printf("\ERROR: Queue named %s does not exist.", name);
+		debug_list();
+		printf("\nDEBUG: Total queues : %d", queue_count);
+		return QUEUE_NOT_EXIST;
+	}
+}
+
+/**
+ * Adds node to tail of a queue
+ */
+int add_to_queue(Queue *q, Qmsg *m) {
+
+	Qnode * mnode = (Qnode *) malloc(sizeof(Qnode));
+	if(mnode == NULL) {
+		printf("\nERROR: Failed to allocate memory for message node.");
+		return -1;
+	}
+
+	mnode->next = NULL;
+	mnode->msg = m;
+
+	if(q->HEAD == NULL) {
+		mnode->prev = NULL;
+		q->HEAD = mnode;
+		q->TAIL = mnode;
+	} else {
+		Qnode *tmp = q->HEAD;
+		while(tmp->next != NULL) {
+			tmp = tmp->next;
+		}
+		mnode->prev = tmp;
+		tmp->next = mnode;
+		q->TAIL = mnode;
+	}
+
+	q->attr->currentcount++;
+	printf("\nDEBUG: Total number of message is queue %s are %d ",q->attr->name,q->attr->currentcount);
+	return 0;
+}
+
+int do_res_mg_q() {
+	return MSG_REC_SUCCESS;
+}
+
+/**
  *	Sets attributes of a queue (CALLNR SETATTRQ	56)
  *
  *Incoming IPC Message format:
- *  m_in.m11_i1 = Queue name len
  *  m_in.m11_i2 = Queue Capacity
  *  m_in.m11_i3 = Queue Type Blocking/Non-Blocking
  *  m_in.m11_ca2 = Queue Name
@@ -136,14 +215,17 @@ int do_close_q() {
  *
  */
 int do_set_attr_q() {
-	int q_name_len = m_in.m11_i1 > QIPC_MAX_Q_NAME_LEN ? QIPC_MAX_Q_NAME_LEN : m_in.m11_i1;
-	char *name = (char *) malloc(q_name_len);
-	sys_datacopy(who_e, (vir_bytes)  m_in.m11_ca1, SELF,(vir_bytes) name, q_name_len);
-	printf("\nDEBUG: q->attr->q_name_len = %d", q_name_len);
+
+	char *name = (char *) malloc(QIPC_MAX_Q_NAME_LEN);
+	sys_datacopy(who_e, (vir_bytes)  m_in.m11_ca1, SELF,(vir_bytes) name, QIPC_MAX_Q_NAME_LEN);
+
+	printf("\nDEBUG: q->attr->q_name_len = %d", strlen(name));
 	printf("\nDEBUG: q->attr->name = %s", name);
+
 	int indx = check_queue_exist(name);
 	debug_list();
 	printf("\nDEBUG: index = %d", indx);
+
 	if(indx>=0) {
 		Queue *q1=queue_arr[indx];
 		if(m_in.m11_i2 > QIPC_MAX_Q_MSG_CAP) {
@@ -154,8 +236,11 @@ int do_set_attr_q() {
 		q1->attr->blocking = m_in.m11_i3;
 		printf("\nINFO: Successfully updated attributes of queue %s", name);
 		debug_list();
+		free(name);
+		name = NULL;
 		return QUEUE_UPDATE_SUCCESS;
 	}
+
 	printf("\nERROR: Queue named %s does not exist.", name);
 	debug_list();
 	return QUEUE_NOT_EXIST;
@@ -165,7 +250,6 @@ int do_set_attr_q() {
  *	Gets attributes of a queue (CALLNR GETATTRQ	57)
  *
  *Incoming IPC Message format:
- *  m_in.m11_i1 = Queue name len
  *  m_in.m11_ca2 = Queue Name
  *
  *Outgoing IPC Message format:
@@ -176,22 +260,30 @@ int do_set_attr_q() {
  *
  */
 int do_get_attr_q() {
+
 	register struct mproc *rmp = mp;
-	int q_name_len = m_in.m11_i1 > QIPC_MAX_Q_NAME_LEN ? QIPC_MAX_Q_NAME_LEN : m_in.m11_i1;
-	char *name = (char *) malloc(q_name_len);
-	sys_datacopy(who_e, (vir_bytes)  m_in.m11_ca1, SELF,(vir_bytes) name, q_name_len);
-	printf("\nDEBUG: q->attr->q_name_len = %d", q_name_len);
+	char *name = (char *) malloc(QIPC_MAX_Q_NAME_LEN);
+	sys_datacopy(who_e, (vir_bytes)  m_in.m11_ca1, SELF,(vir_bytes) name, QIPC_MAX_Q_NAME_LEN);
+
+	printf("\nDEBUG: q->attr->q_name_len = %d", strlen(name));
 	printf("\nDEBUG: q->attr->name = %s", name);
+
 	int indx = check_queue_exist(name);
 	printf("\nDEBUG: index = %d", indx);
 	debug_list();
+
 	if(indx>=0) {
 		Queue *q1 = queue_arr[indx];
 		rmp->mp_reply.m2_i1 = q1->attr->capacity;
 		rmp->mp_reply.m2_i2 = q1->attr->blocking;
+		free(name);
+		name = NULL;
 		return QUEUE_UPDATE_SUCCESS;
 	}
+
 	printf("\nERROR: Queue named %s does not exist.", name);
+	free(name);
+	name = NULL;
 	return QUEUE_NOT_EXIST;
 }
 
@@ -285,9 +377,9 @@ Qmsg * get_qipc_msg() {
 		sys_datacopy(who_e, (vir_bytes)  m_in.m11_ca1, SELF,(vir_bytes) tmp->data, tmp->dataLen);
 		tmp->senderId = m_in.m_source;
 		tmp->expiryts = m_in.m11_t1;
-		tmp->priority = m_in.m11_i1;
+		tmp->priority = m_in.m11_i2;
 		tmp->rests = clock_time();
-		tmp->recieverCount = m_in.m11_i2;
+		tmp->recieverCount = m_in.m11_i1;
 		tmp->recieverIds = (int *) malloc(tmp->recieverCount * sizeof(int));
 		sys_datacopy(who_e, (vir_bytes)  m_in.m11_e1, SELF,(vir_bytes) tmp->recieverIds, tmp->recieverCount * sizeof(int));
 	}
