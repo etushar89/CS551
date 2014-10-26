@@ -66,7 +66,7 @@ typedef struct Queue {
 } Queue ;
 
 EXTERN char* qipc_msg[2];
-EXTERN Queue* queue_arr[QIPC_MAX_Q_COUNT];	//holds array of HEADs of all the queues present
+EXTERN Queue* queue_arr[QIPC_MAX_Q_COUNT];	//holds array of pointers to all queues present
 EXTERN int queue_count;	//count of current queues present
 
 time_t clock_time();
