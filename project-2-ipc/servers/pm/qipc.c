@@ -274,7 +274,6 @@ Qnode *get_msg_from_queue(Queue *q, pid_t receiver, pid_t expected_sender) {
 			printf("\nDEBUG: E = %d == %d", current_sender, tmp->msg->senderId);
 			if(current_sender == tmp->msg->senderId) {
 				for(int i=0; i < tmp->msg->recieverCount; i++) {
-					tmp->msg->recieverIds[i] = receiver;
 					printf("\nDEBUG: %d == %d", tmp->msg->recieverIds[i], receiver);
 					if(tmp->msg->recieverIds[i] == receiver) {
 						if(tmsg==NULL || (tmsg->msg->priority > tmp->msg->priority)) {
