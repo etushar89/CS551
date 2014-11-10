@@ -104,9 +104,15 @@ int nice_to_priority(int nice, unsigned *new_q);
 int pm_isokendpt(int ep, int *proc);
 void tell_vfs(struct mproc *rmp, message *m_ptr);
 
+int do_async_send();
+int do_async_recieve(); 
+
+/* qipc calls */
 int do_open_q();
 int do_close_q();
 int do_set_attr_q();
 int do_get_attr_q();
-int do_send_mg_q();
+int do_blocking_receive();
 int do_res_mg_q();
+int do_send_mg_q();
+int do_mqreqnotify();

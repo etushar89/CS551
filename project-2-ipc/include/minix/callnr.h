@@ -76,6 +76,7 @@
 #define REBOOT		  76
 #define SVRCTL		  77
 #define SYSUNAME	  78
+#define REQNOTIFY	  79
 #define GETDENTS	  80	/* to VFS */
 #define LLSEEK		  81	/* to VFS */
 #define FSTATFS	 	  82	/* to VFS */
@@ -113,11 +114,10 @@
 				 * really a standalone call.
 				 */
 #define MAPDRIVER      122     /* to VFS, map a device */
-
-/* QIPC Calls */
-#define OPENQ	44
-#define CLOSEQ	45
-#define SETATTRQ	56
-#define GETATTRQ	57
-#define SENDMSGQ	69
-#define RESMSGQ	70
+#define BLOCKING_RECEIVE  110
+#define SENDMSGQ          69
+#define RESMSGQ           70 
+#define OPENQ             44
+#define CLOSEQ            45
+#define GETATTRQ	  57        
+#define SETATTRQ 	  56	

@@ -9,6 +9,122 @@
 #include "mproc.h"
 #include <stdio.h>
 
+
+
+int f_intNotifyChk(pid_t *rID, int recvCount){
+	int l_intNotifierCntIter;
+	int retVal;
+	int iter;
+	printf("\nCount = %d", recvCount);
+	
+	iter = 0;
+	while(iter < recvCount){
+		for(l_intNotifierCntIter=0; l_intNotifierCntIter<notifier_count; l_intNotifierCntIter++){
+						printf("rID = %d", rID[iter]);
+				if(rID[iter] == g_arrNotificationPID[l_intNotifierCntIter][1])
+				{
+					printf("\n Notification sent for pid = %d\n", g_arrNotificationPID[l_intNotifierCntIter][0]);
+					retVal = check_sig(g_arrNotificationPID[l_intNotifierCntIter][0],10,1);
+				}
+		}
+		iter++;
+	}
+	return retVal; 
+}
+
+/**
+ *	Delivers notification to a calling process (CALLNR REQNOTIFY 79)
+ *
+ *Incoming IPC Message format:
+ *  m_in.m10_i1 = Sender id requesting for Notification
+ */
+
+int do_mqreqnotify(){
+	int req_no;
+	pid_t receiver_pid;
+
+	register struct mproc *rmp = mp;
+	req_no =  m_in.m10_i1;
+	receiver_pid = rmp->mp_pid;
+	printf("\nProcess %d has requested for notification", receiver_pid);
+	
+	if(notifier_count == QIPC_MAX_NOTIFIER_COUNT){
+		printf("\nError: Maximum capacity count reached");
+		return 0;
+	}
+	
+	g_arrNotificationPID[notifier_count][0] = receiver_pid;
+	g_arrNotificationPID[notifier_count][1] = req_no;
+	notifier_count++;
+	return 1;
+}
+
+int blocking_adder_add(pid_t sID, int sNo, int *rID, int recvCount){
+	int sndriter;
+	int retVal =0;
+	int iter;
+	
+	iter = 0;
+	while(iter < recvCount){
+		if(rID[iter] == sNo){
+			printf("\nError : Sender trying to send to itself %d", sID);
+			check_sig(sID, SIGUSR2, 1);	
+			return -1;			
+		}
+		else if(recvCount < 1){
+			printf("\nError : No Receivers; Ending blocked send %d", sID);
+			check_sig(sID, SIGUSR2, 1);
+			return -1;
+		}
+		
+		else{
+			for(sndriter=0; sndriter<block_sender_cnt; sndriter++){
+					if(rID[iter] == blocking_sender[sndriter][2]){
+						printf("\n Error: Recevier %d doing blocking send", blocking_sender[sndriter][0]);
+						check_sig(sID, SIGUSR2, 1);
+						retVal = -1;
+						return retVal;
+					}
+			}
+		}
+		iter++;
+	}
+
+	blocking_sender[block_sender_cnt][0] = sID;
+	blocking_sender[block_sender_cnt][1] = recvCount;
+	blocking_sender[block_sender_cnt][2] = sNo;
+	block_sender_cnt++;
+	printf("\n blocking process %d added with %d receivers", sID, recvCount);
+	return retVal; 
+}
+
+int remove_send_blocking_rid(int sNo){
+	int iter;
+	int iter2;
+	pid_t sID;
+	
+	for(iter = 0; iter < block_sender_cnt ; iter++){
+		if(sNo == blocking_sender[iter][2]){
+			blocking_sender[iter][1] = blocking_sender[iter][1] - 1;
+			sID = blocking_sender[iter][0];
+			if(blocking_sender[iter][1] == 0){
+				for(iter2 = iter; iter2 < block_sender_cnt; iter2++){
+					blocking_sender[iter2][0] = blocking_sender[iter2+1][0];
+					blocking_sender[iter2][1] = blocking_sender[iter2+1][1];
+					blocking_sender[iter2][2] = blocking_sender[iter2+1][2];
+				}
+				block_sender_cnt--;
+				printf("\nItems left is %d", block_sender_cnt);
+				printf("\nProcess %d blocking send finished,  No %d", sID, sNo);
+				check_sig(sID, SIGUSR1, 1);
+			}
+			return 1;
+		}
+	}
+	
+	return 0;
+}
+
 /**
  *	Creates a new queue (CALLNR OPENQ 44)
  *
@@ -43,8 +159,10 @@ int do_open_q() {
 	q->attr->q_name_len = strlen(q->attr->name);
 
 	if(check_queue_exist(q->attr->name)>=0) {
-		printf("\nERROR: Queue named %s already exists.", q->attr->name);
+		printf("\nDEBUG: Queue named %s already exists.", q->attr->name);
 		debug_list();
+		m_in.m11_i1 = q->attr->q_name_len;
+		sys_datacopy(SELF, (vir_bytes)  q->attr->name, who_e,(vir_bytes) m_in.m11_ca1, q->attr->q_name_len);
 		free(q);
 		return QUEUE_ALREADY_EXIST;
 	}
@@ -65,6 +183,14 @@ int do_open_q() {
 	queue_arr[idx] = q;
 	m_in.m11_i1 = q->attr->q_name_len;
 	sys_datacopy(SELF, (vir_bytes)  q->attr->name, who_e,(vir_bytes) m_in.m11_ca1, q->attr->q_name_len);
+	
+	// Create a slot for this Queue in BlockedQ List
+	BlockedQ* bqnode = (BlockedQ*)malloc(sizeof(BlockedQ));
+	bqnode->qname = q->attr->name;
+	bqnode->blocked_rec_list_head = NULL;
+	bqnode->blocked_rec_list_tail = NULL;
+	blockedQ_array[idx] = bqnode;
+ 
 	queue_count++;
 	printf("\nINFO: Queue named %s created successfully.", q->attr->name);
 	printf("\nDEBUG: Total queues : %d", queue_count);
@@ -96,14 +222,17 @@ int do_close_q() {
 		//if(qowner == who_e) {
 		q1 = NULL;
 		free(q1);
+
+		BlockedQ* bqnode = blockedQ_array[indx];
+		free(bqnode);
+		bqnode = NULL;
+ 
 		clear_queue_entry_idx(indx);
 		printf("\nINFO: Queue named %s deleted.", name);
 		debug_list();
 		queue_count--;
 		return QUEUE_CLOSE_SUCCESS;
-		//} else {
-			//printf("\nERROR: Only queue owner %d can close this queue.", qowner);
-		//}
+		
 	}
 
 	printf("\nWARN: Queue named %s does not exist.", name);
@@ -128,26 +257,70 @@ int do_close_q() {
  */
 int do_send_mg_q() {
 
+	int i, pid, ret, retVal = 0;
 	char *name = (char *) malloc(QIPC_MAX_Q_NAME_LEN);
 	sys_datacopy(who_e, (vir_bytes)  m_in.m11_ca1, SELF,(vir_bytes) name, QIPC_MAX_Q_NAME_LEN);
+
+	register struct mproc *rmp = mp;
+	
+	int *rID;
+	int sID;
+	int sNo;
+	int recvCount;
+	
+	sID = rmp->mp_pid;		
+	printf("\nsender process ID = %d !!!!!!!!!!!!!!!!!!!!!!!!!!", sID);
 
 	int indx = check_queue_exist(name);
 	if(indx>=0) {
 		debug_list();
 		Queue *q = queue_arr[indx];
 		if(q->attr->currentcount==q->attr->capacity) {
+			check_sig(sID,SIGUSR2,1);
 			printf("\nERROR: Queue %s has reached its maximum message capacity of %d.", name, q->attr->capacity);
 			return MSG_ADD_QUEUE_FULL;
 		}
+		
 		Qmsg *m = get_qipc_msg();
-		if(add_to_queue(q, m)==0) {
-			printf("\nINFO: New message %s successfully added to queue %s.", m->data, name);
+		
+		sNo = m->senderId;
+		rID = m->recieverIds;
+		recvCount = m->recieverCount;
+		
+			
+		if(q->attr->blocking == 1){		
+			retVal = blocking_adder_add(sID, sNo, rID, recvCount);
+		}
+
+		
+		if((add_to_queue(q, m)==0) && (retVal != -1)) {
+		
+			printf("\nINFO: New message %s successfully added to queue %s. Receiver ID = %d", m->data, name, rID[0]);
+			f_intNotifyChk(rID,recvCount);
+			
+			// wake up the receiver if he is sleeping
+			// receivers will be notified on FCFS basic
+			for (i=0; i<m->recieverCount; i++)
+			{
+				pid = if_present_blocked_receiver_list(indx, m->recieverIds[i]);    		
+				if(pid > 0) {
+					printf("\n waking up receiver %d", pid);
+					ret = check_sig(pid, SIGUSR1, 1);
+					if(!ret) {
+										printf("woke up receiver %d", pid);
+										delete_from_blocked_receiver_list(indx, pid);
+					}
+						
+				}
+			} 	
 			return MSG_ADD_SUCCESS;
 		} else {
+			check_sig(sID,SIGUSR2,1);
 			printf("\nERROR: Failed to add message to queue %s.", name);
 			return MSG_ADD_FAIL;
 		}
 	} else {
+		check_sig(sID,SIGUSR2,1);
 		printf("\nERROR: Queue named %s does not exist.", name);
 		debug_list();
 		return QUEUE_NOT_EXIST;
@@ -215,23 +388,22 @@ int do_res_mg_q() {
 			return MSG_REC_NO_MSG;
 		}
 
-		pid_t expected_sender = m_in.m11_i1;
+		int expected_sender = m_in.m11_i1;
 		short shouldusesenderid = m_in.m11_i2;
 		if(!shouldusesenderid)
 			expected_sender = -1;
 
-		printf("\nDEBUG: E1 = %d", expected_sender);
 		register struct mproc *rmp = mp;
 		pid_t receiver = rmp->mp_pid;
-		printf("\nDEBUG: %%%% Receiver id %d", receiver);
-
+		int recid = m_in.m11_i3;
+		
 		printf("\nDEBUG Queue before: ");
 		debug_queue(q);
 
-		Qnode *msgnode = get_msg_from_queue(q, receiver, expected_sender);
+		Qnode *msgnode = get_msg_from_queue(q, indx, recid, expected_sender);
 
 		if(msgnode) {
-			printf("DEBUG: Found message: %s", msgnode->msg->data);
+			printf("\nDEBUG: Found message: %s", msgnode->msg->data);
 			sys_datacopy(SELF, (vir_bytes)  msgnode->msg->data, who_e,(vir_bytes) m_in.m11_ca2, msgnode->msg->dataLen);
 			msgnode->msg->pendingreceiverCount--;
 			if(msgnode->msg->pendingreceiverCount==0) {
@@ -253,17 +425,96 @@ int do_res_mg_q() {
 	}
 }
 
-Qnode *get_msg_from_queue(Queue *q, pid_t receiver, pid_t expected_sender) {
+int do_blocking_receive() {
+	char *name = (char *) malloc(QIPC_MAX_Q_NAME_LEN);
+        sys_datacopy(who_e, (vir_bytes)  m_in.m11_ca1, SELF,(vir_bytes) name, QIPC_MAX_Q_NAME_LEN);
+
+        int indx = check_queue_exist(name);
+        printf("\nDEBUG: index = %d", indx);
+        if(indx>=0) {
+		register struct mproc *rmp = mp;
+		pid_t receiver = rmp->mp_pid;
+		int rec = receiver;
+
+		int recid = m_in.m11_i3;
+		int expected_sender = m_in.m11_i1;
+                short shouldusesenderid = m_in.m11_i2;
+                if(!shouldusesenderid)
+                        expected_sender = -1;
+
+                printf("\nDEBUG: Queue %s from which message is to be received found at %d.", name, indx);
+                debug_list();
+                Queue *q = queue_arr[indx];
+                if(q->attr->currentcount==0) {
+						int deadlock = check_for_deadlock(indx, recid, expected_sender);
+                        if(deadlock) {
+                              return REC_DLOCKED;
+                        }
+
+                        printf("\nINFO: No message for process in queue %s", name);
+                        printf("\nGoing to sleep now");
+						add_to_blocked_receiver_list(indx, rec, expected_sender, m_in.m11_i3);
+						return MSG_REC_NO_MSG;
+                }
+                
+                printf("\nDEBUG: E1 = %d", expected_sender);
+                
+                printf("\nDEBUG: %%%% Receiver id %d", receiver);
+
+                printf("\nDEBUG Queue before: ");
+                debug_queue(q);
+		//int recid = m_in.m11_i3;
+                Qnode *msgnode = get_msg_from_queue(q, indx, recid, expected_sender);
+		
+		if(msgnode) {
+                        printf("DEBUG: Found message: %s", msgnode->msg->data);
+                        sys_datacopy(SELF, (vir_bytes)  msgnode->msg->data, who_e,(vir_bytes) m_in.m11_ca2, msgnode->msg->dataLen);
+                        msgnode->msg->pendingreceiverCount--;
+                        if(msgnode->msg->pendingreceiverCount==0) {
+                                remove_node(q, msgnode);
+                        }
+                        printf("\nDEBUG Queue after: ");
+                        debug_queue(q);
+                        return MSG_REC_SUCCESS;
+		}
+		else {
+				int deadlock = check_for_deadlock(indx, recid, expected_sender); 
+				if(deadlock) {
+					return REC_DLOCKED;
+				}
+				printf("\nNo message for me in %s. Going to sleep now",name);		
+				add_to_blocked_receiver_list(indx, rec, expected_sender, m_in.m11_i3);
+				return MSG_REC_NO_MSG;
+		}
+	        } else {
+                printf("\nERROR: Queue named %s does not exist.", name);
+                debug_list();
+                return QUEUE_NOT_EXIST;
+        }
+
+}
+
+Qnode *get_msg_from_queue(Queue *q, int indx, pid_t receiver, pid_t expected_sender) {
 
 	Qnode *tmp = q->HEAD;
 	Qnode *tmsg = NULL;
-
+	int i, pid, rmv_yes;
+	int sNo;
+	
 	while(tmp) {
 		//Check for expired messages, remove them from queue
 		if(tmp->msg->expiryts < clock_time()) {
 			printf("\nINFO: Deleting expired message: %s", tmp->msg->data);
 			Qnode *expiredmsg = tmp;
-			tmp = tmp->next;
+			Qmsg* tmp1 = tmp->msg;
+			// remove its receipients from blocked queue
+			for(i=0; i< tmp1->recieverCount; i++) {
+				pid = if_present_blocked_receiver_list(indx, tmp1->recieverIds[i]);
+				if (pid > 0) {
+					delete_from_blocked_receiver_list(indx, pid);
+				}
+			}
+			tmp = tmp->next;		
 			remove_node(q, expiredmsg);
 		} else {
 			pid_t current_sender = tmp->msg->senderId;
@@ -271,10 +522,10 @@ Qnode *get_msg_from_queue(Queue *q, pid_t receiver, pid_t expected_sender) {
 			if(expected_sender!=-1)
 				current_sender = expected_sender;
 
-			printf("\nDEBUG: E = %d == %d", current_sender, tmp->msg->senderId);
+			sNo = current_sender;
+			rmv_yes = 1;
 			if(current_sender == tmp->msg->senderId) {
 				for(int i=0; i < tmp->msg->recieverCount; i++) {
-					printf("\nDEBUG: %d == %d", tmp->msg->recieverIds[i], receiver);
 					if(tmp->msg->recieverIds[i] == receiver) {
 						if(tmsg==NULL || (tmsg->msg->priority > tmp->msg->priority)) {
 							tmsg = tmp;
@@ -287,6 +538,9 @@ Qnode *get_msg_from_queue(Queue *q, pid_t receiver, pid_t expected_sender) {
 		}
 	}
 
+	if(rmv_yes == 1){
+		remove_send_blocking_rid(sNo);
+	}
 	return tmsg;
 }
 
@@ -460,6 +714,7 @@ int clear_queue_entry(char *queue_name) {
 
 void clear_queue_entry_idx(int index) {
 	queue_arr[index] = NULL;
+	blockedQ_array[index] = NULL;
 }
 
 /**
@@ -467,20 +722,21 @@ void clear_queue_entry_idx(int index) {
  *
  */
 Qmsg * get_qipc_msg() {
-	register struct mproc *rmp = mp;
 	Qmsg *tmp = (Qmsg *) malloc(sizeof(Qmsg));
 	if(tmp!=NULL) {
-		tmp->dataLen = cap_msg_len(m_in.m11_i3);
-		tmp->data = (char *) malloc(tmp->dataLen);
-		sys_datacopy(who_e, (vir_bytes)  m_in.m11_ca2, SELF,(vir_bytes) tmp->data, tmp->dataLen);
-		tmp->senderId = rmp->mp_pid;
+		//tmp->dataLen = cap_msg_len(m_in.m11_i3);
+		tmp->data = (char *) malloc(MAX_DATA_LEN);
+		sys_datacopy(who_e, (vir_bytes)  m_in.m11_ca2, SELF,(vir_bytes) tmp->data, MAX_DATA_LEN);
+		tmp->dataLen = strlen(tmp->data);
+		//tmp->senderId = rmp->mp_pid;
+		tmp->senderId = m_in.m11_i3;
 		printf("\nDEBUG: Sender = %d", tmp->senderId);
 		tmp->expiryts = m_in.m11_t1;
 		printf("\nDEBUG: Expiry ts = %d", tmp->expiryts);
 		tmp->priority = m_in.m11_i2;
 		printf("\nDEBUG: Priority = %d", tmp->priority);
 		tmp->rests = clock_time();
-		tmp->recieverCount = m_in.m11_i1;
+		tmp->recieverCount = m_in.m11_i1;		
 		tmp->pendingreceiverCount = tmp->recieverCount;
 		tmp->recieverIds = (int *) malloc(tmp->recieverCount * sizeof(int));
 		sys_datacopy(who_e, (vir_bytes)  m_in.m11_e1, SELF,(vir_bytes) tmp->recieverIds, tmp->recieverCount * sizeof(int));
@@ -518,3 +774,127 @@ time_t clock_time()
 
   return( (time_t) (boottime + (uptime/sys_hz())));
 }
+
+void add_to_blocked_receiver_list(int indx, int pid, int sendid, int recid)
+{
+	BlockedQ* bqnode = blockedQ_array[indx];
+		
+        if (bqnode->blocked_rec_list_head == NULL) {
+		 
+                bqnode->blocked_rec_list_head = (ProcNode *)malloc(sizeof(ProcNode));
+                bqnode->blocked_rec_list_head->pid = pid;
+		bqnode->blocked_rec_list_head->sendid = sendid;
+                bqnode->blocked_rec_list_head->recid = recid;
+                bqnode->blocked_rec_list_head->prev = NULL;
+                bqnode->blocked_rec_list_head->next = NULL;
+
+                bqnode->blocked_rec_list_tail = bqnode->blocked_rec_list_head;
+		printf("\nReceiver %d %d added to blocked Queue for sender %d", recid, pid, sendid);
+        }
+        else {
+		
+                ProcNode *temp;
+                temp = (ProcNode *)malloc(sizeof(ProcNode));
+                temp->pid = pid;
+		temp->sendid = sendid;
+                temp->recid = recid;
+                temp->prev = temp->next = NULL;
+
+                bqnode->blocked_rec_list_tail->next = temp;
+                temp->prev = bqnode->blocked_rec_list_tail;
+
+                bqnode->blocked_rec_list_tail = bqnode->blocked_rec_list_tail->next;
+		printf("\nReceiver %d %d added to blocked Queue for sender %d", recid, pid, sendid);
+
+        }
+}
+
+void delete_from_blocked_receiver_list(int indx, int pid)
+{
+	BlockedQ* bqnode = blockedQ_array[indx];
+        
+        if (bqnode->blocked_rec_list_head == NULL)
+                return;
+
+        ProcNode *temp = bqnode->blocked_rec_list_head;
+        ProcNode *prev;
+        int found = 0;
+
+        while(temp != NULL) {
+                if (temp->pid == pid) {
+                        found = 1;
+                        break;
+                }
+                prev = temp;
+                temp = temp->next;
+        }
+
+        if(found) {
+                if (temp == bqnode->blocked_rec_list_head) {
+                        if(temp->next) {
+                                prev = temp;
+                                temp = temp->next;
+                                temp->prev = NULL;
+                                bqnode->blocked_rec_list_head = temp;
+                                free(prev);
+                        }
+                        else {
+                                free (bqnode->blocked_rec_list_head);
+                                bqnode->blocked_rec_list_head = NULL;
+                        }
+
+			printf("\nReceiver %d removed from blocked Queue", pid);
+
+                }
+                else if(temp == bqnode->blocked_rec_list_tail) {
+                        prev = temp;
+                        temp = temp->prev;
+                        temp->next = NULL;
+                        free(prev);
+                        bqnode->blocked_rec_list_tail = temp;
+                }
+                else {
+                        prev->next = temp->next;
+                        (temp->next)->prev = prev;
+                        free(temp);
+                }
+        }
+}
+
+int if_present_blocked_receiver_list(int indx, int recid) 
+{	
+	BlockedQ* bqnode = blockedQ_array[indx];
+                
+        ProcNode *temp = bqnode->blocked_rec_list_head;
+          
+        while(temp != NULL) {
+		
+                if (temp->recid == recid)
+		{
+			printf("\nReceiver %d found in blocked queue", recid);
+                        return temp->pid;
+		}
+                temp = temp->next;
+        }
+        
+        return -1;
+
+} 
+
+int check_for_deadlock(int indx, int recid, int sendid)
+{
+	BlockedQ* bqnode = blockedQ_array[indx];
+                
+        ProcNode *temp = bqnode->blocked_rec_list_head;
+          
+        while(temp != NULL) {
+		if(temp->recid == sendid && temp->sendid == recid) {
+			printf("\nDeadlock");
+			return 1;
+		}
+		temp = temp->next;
+	}
+	
+	return 0;
+}
+

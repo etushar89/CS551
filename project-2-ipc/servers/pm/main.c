@@ -41,6 +41,7 @@ EXTERN unsigned long calls_stats[NCALLS];
 
 int queue_count;
 Queue* queue_arr[QIPC_MAX_Q_COUNT];
+BlockedQ* blockedQ_array[QIPC_MAX_Q_COUNT];
 
 static void sendreply(void);
 static int get_nice_value(int queue);
@@ -180,8 +181,11 @@ static void qipc_init()
   int i;
   for(i=0;i<QIPC_MAX_Q_COUNT;i++) {
 	  queue_arr[i] = NULL;
+	  blockedQ_array[i] = NULL;	
   }
   queue_count = 0;
+  notifier_count = 0;
+  block_sender_cnt = 0;
 }
 
 /*===========================================================================*
