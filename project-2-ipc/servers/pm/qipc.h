@@ -35,14 +35,23 @@
 #define QUEUE_UPDATE_SUCCESS	11
 #define QUEUE_UPDATE_FAIL	12
 #define REC_DLOCKED             13
+#define UNAUTHORIZED_OP	14
+#define INVALID_Q_AUTH_TYPE	15
+
+#define SECURE_Q	1
+#define PUBLIC_Q	0
+
+#define MAX_LENGTH 1000
 
 typedef struct qipc_qattr {
 	int capacity;         // maximum message capacity of the queue
 	int currentcount;         // number of messages present in queue
 	int blocking;	//queue type, blocking or non-blocking	//TODO Remove this
-	int q_name_len;	//queue type, blocking or non-blocking
+	int q_name_len;	//queue name length
+	short q_auth_type;	//secured (1) or public (0)
 	char* name;	//name of the queue
-	pid_t owner;	//the process id of the oqner
+	pid_t owner_pid;	//the process id of the owner
+	uid_t owner_uid;	//the process id of the owner
 	time_t creationtime;	//message received timestamp
 } QueueAttr;
 
@@ -71,18 +80,51 @@ typedef struct Queue {
 } Queue ;
 
 typedef struct ProcessNode {
-        int pid;
-        int recid;
-        int sendid;
+	int pid;
+	int recid;
+	int sendid;
 	struct ProcessNode *prev;
-        struct ProcessNode *next;
+	struct ProcessNode *next;
 } ProcNode;
 
 typedef struct BlockedQ {
 	char *qname;
 	ProcNode *blocked_rec_list_head;
 	ProcNode *blocked_rec_list_tail;
-}BlockedQ;
+} BlockedQ;
+
+//Authorization modes
+#define Q_READ	00100
+#define Q_WRITE	00200
+#define Q_CREATE	00400
+#define Q_DROP	01000
+
+#define MAX_AUTH_ENTITIES	32
+
+typedef struct gAuthEntity {
+	int auth;
+	gid_t gid;
+} gAuthEntity ;
+
+typedef struct uAuthEntity {
+	int auth;
+	uid_t uid;
+} uAuthEntity;
+
+EXTERN int secure_q_gAuth_count;
+EXTERN int secure_q_uAuth_count;
+EXTERN int denied_public_q_gauth_count;
+EXTERN int denied_public_q_uauth_count;
+
+//Holds group permits for secured queues
+EXTERN gAuthEntity* secure_q_gAuth_list[MAX_AUTH_ENTITIES];
+//Holds user permits for secured queues
+EXTERN uAuthEntity* secure_q_uAuth_list[MAX_AUTH_ENTITIES];
+
+//Holds groups which are denied access to public queue
+EXTERN gid_t denied_public_q_gauth[MAX_AUTH_ENTITIES];
+//Holds users which are denied access to public queue
+EXTERN uid_t denied_public_q_uauth[MAX_AUTH_ENTITIES];
 
 EXTERN Queue* queue_arr[QIPC_MAX_Q_COUNT];	//holds array of pointers to all queues present
 EXTERN int queue_count;	//count of current queues present
@@ -113,6 +155,14 @@ void debug_queue(Queue *);
 int remove_send_blocking_rid(pid_t sID);
 int f_intNotifyChk(pid_t *rID, int recvCount);
 
+//Auth related
+int parse_secure();
+int nextline(int fp);
+short groupHasSecureAuth(gid_t gid, int auth);
+short userHasSecureAuth(uid_t uid, int auth);
+short groupHasDeniedPublicAuth(gid_t gid);
+short userHasDeniedPublicAuth(uid_t uid);
+
 // Blocked Receiver List related functions
 void add_to_blocked_receiver_list(int indx, int pid, int sendid, int recid);
 void delete_from_blocked_receiver_list(int indx, int pid);
@@ -125,5 +175,7 @@ void *malloc(size_t size);
 int strcmp(const char *s1, const char *s2);
 char *strcpy(char *to, const char *from);
 size_t strlen(const char *str);
+char *strtok(char *s, const char *delim);
+int atoi(const char *str);
 
 #endif /* QIPC_H_ */

@@ -42,6 +42,15 @@ EXTERN unsigned long calls_stats[NCALLS];
 int queue_count;
 Queue* queue_arr[QIPC_MAX_Q_COUNT];
 BlockedQ* blockedQ_array[QIPC_MAX_Q_COUNT];
+gAuthEntity* secure_q_gAuth_list[MAX_AUTH_ENTITIES];
+uAuthEntity* secure_q_uAuth_list[MAX_AUTH_ENTITIES];
+gid_t denied_public_q_gauth[MAX_AUTH_ENTITIES];
+uid_t denied_public_q_uauth[MAX_AUTH_ENTITIES];
+
+int secure_q_gAuth_count;
+int secure_q_uAuth_count;
+int denied_public_q_gauth_count;
+int denied_public_q_uauth_count;
 
 static void sendreply(void);
 static int get_nice_value(int queue);
@@ -186,6 +195,20 @@ static void qipc_init()
   queue_count = 0;
   notifier_count = 0;
   block_sender_cnt = 0;
+
+  secure_q_gAuth_count = 0;
+  secure_q_uAuth_count = 0;
+  denied_public_q_gauth_count = 0;
+  denied_public_q_uauth_count = 0;
+
+  for(i=0;i<MAX_AUTH_ENTITIES;i++) {
+	  secure_q_gAuth_list[i] = NULL;
+	  secure_q_uAuth_list[i] = NULL;
+	  denied_public_q_gauth[i] = -1;
+	  denied_public_q_uauth[i] = -1;
+  }
+
+  parse_secure();
 }
 
 /*===========================================================================*
