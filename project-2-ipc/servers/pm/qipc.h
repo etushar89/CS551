@@ -144,7 +144,7 @@ int get_empty_q_slot();
 int check_queue_exist(char *);
 Queue * get_queue(char *);
 int add_to_queue(Queue *, Qmsg *);
-Qnode *get_msg_from_queue(Queue *, int indx, endpoint_t, endpoint_t);
+Qnode *get_msg_from_queue(Queue *, int , endpoint_t, endpoint_t);
 int clear_queue_entry(char *);
 void clear_queue_entry_idx(int);
 void remove_node(Queue *, Qnode *);
@@ -152,30 +152,30 @@ void remove_node(Queue *, Qnode *);
 void debug_list();
 void debug_queue(Queue *);
 
-int remove_send_blocking_rid(pid_t sID);
-int f_intNotifyChk(pid_t *rID, int recvCount);
+int remove_send_blocking_rid(pid_t);
+int f_intNotifyChk(pid_t *, int);
 
 //Auth related
 int parse_secure();
 int nextline(int fp);
-short groupHasSecureAuth(gid_t gid, int auth);
-short userHasSecureAuth(uid_t uid, int auth);
-short groupHasDeniedPublicAuth(gid_t gid);
-short userHasDeniedPublicAuth(uid_t uid);
+short groupHasSecureAuth(gid_t, int);
+short userHasSecureAuth(uid_t, int);
+short groupHasDeniedPublicAuth(gid_t);
+short userHasDeniedPublicAuth(uid_t);
 
 // Blocked Receiver List related functions
-void add_to_blocked_receiver_list(int indx, int pid, int sendid, int recid);
-void delete_from_blocked_receiver_list(int indx, int pid);
-int if_present_blocked_receiver_list(int indx, int recid);
-int check_for_deadlock(int indx, int rec, int sendid);
+void add_to_blocked_receiver_list(int, int, int, int);
+void delete_from_blocked_receiver_list(int, int);
+int if_present_blocked_receiver_list(int, int);
+int check_for_deadlock(int, int, int);
 
 //stdlib funcs
-void free(void *ptr);
-void *malloc(size_t size);
-int strcmp(const char *s1, const char *s2);
-char *strcpy(char *to, const char *from);
-size_t strlen(const char *str);
-char *strtok(char *s, const char *delim);
-int atoi(const char *str);
+void free(void *);
+void *malloc(size_t);
+int strcmp(const char *, const char *);
+char *strcpy(char *, const char *);
+char *strncpy(char *, const char *, size_t);
+size_t strlen(const char *);
+int atoi(const char *);
 
 #endif /* QIPC_H_ */

@@ -5,9 +5,6 @@
  *      Author: matrix
  */
 #include "pm.h"
-#include "mproc.h"
-#include <stdio.h>
-#include <string.h>
 
 gAuthEntity* secure_q_gAuth_list[MAX_AUTH_ENTITIES];
 uAuthEntity* secure_q_uAuth_list[MAX_AUTH_ENTITIES];
@@ -24,13 +21,26 @@ unsigned linenr;
 
 void tokenize_list(char *type, char *list) {
 	int ids[MAX_LENGTH];
-	char *token = NULL;
-	int count = 0, i;
+	char str[MAX_LENGTH];
+	int count = 0, i, k;
 
-	token = strtok(list, ",");
-	while (token != NULL) {
-		ids[count++] = atoi(token);
-		token = strtok(NULL, ",");
+	strcpy(str, "\0");
+	k = 0;
+
+	for (i = 0; list[i] != '\0'; i++) {
+		if (list[i] == ',') {
+			str[k] = '\0';
+			printf("\n\t str %s", str);
+			ids[count++] = atoi(str);
+			k = 0;
+			i++;
+		}
+		str[k++] = list[i];
+	}
+
+	if (str) {
+		str[k] = '\0';
+		ids[count++] = atoi(str);
 	}
 
 	if (strcmp(type, "write_groups") == 0 || strcmp(type, "read_groups") == 0) {
@@ -94,15 +104,17 @@ void tokenize_list(char *type, char *list) {
 
 int parse_secure() {
 	int fp;
-	char string[MAX_LENGTH];
-	char *var, *val;
-	int secure = 2;
+	char string[MAX_LENGTH], var[MAX_LENGTH], val[MAX_LENGTH];
+	int secure = 2, i;
 
 	if ((fp = open("/etc/secure.conf", O_RDONLY)) == -1)
 		printf("");
 
 	while (nextline(fp) != 0) {
 		strcpy(string, "\0");
+		strcpy(var, "\0");
+		strcpy(val, "\0");
+
 		strncpy(string, lineptr, MAX_LENGTH);
 		if (string[strlen(string) - 1] == '\n')
 			string[strlen(string) - 1] = '\0';
@@ -119,9 +131,14 @@ int parse_secure() {
 		if (string[0] == '#')
 			continue;
 
-		var = strtok(string, "=");
+		for (i = 0; string[i] != '='; i++)
+			var[i] = string[i];
+
+		var[i] = '\0';
+		printf("\n\t var %s", var);
+
 		if (var) {
-			val = strtok(NULL, "=");
+			strcpy(val, (string + i + 1));
 			if (!val) {
 				printf("\nERROR: no value present for %s", var);
 				return -1;
