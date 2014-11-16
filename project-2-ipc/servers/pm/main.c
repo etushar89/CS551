@@ -206,9 +206,9 @@ static void qipc_init()
 	  secure_q_uAuth_list[i] = NULL;
 	  denied_public_q_gauth[i] = -1;
 	  denied_public_q_uauth[i] = -1;
+	  authorizedAdminGroups[i] = -1;
+	  authorizedAdminUsers[i] = -1;
   }
-
-  parse_secure();
 }
 
 /*===========================================================================*

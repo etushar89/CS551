@@ -116,3 +116,6 @@ int do_blocking_receive();
 int do_res_mg_q();
 int do_send_mg_q();
 int do_mqreqnotify();
+int do_auth_users();
+int do_auth_perm_secure();
+int do_auth_perm_public();

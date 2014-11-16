@@ -15,7 +15,7 @@
 #define MAX_DATA_LEN      8
 
 #define QIPC_MAX_NOTIFIER_COUNT 2 //Maximum number of processes that can request for notification
-#define MAX_BLOCKING_SEND 100
+#define MAX_BLOCKING_SEND 16
 
 #define BLOCKING	1
 #define NON_BLOCKING	0
@@ -41,8 +41,6 @@
 #define SECURE_Q	1
 #define PUBLIC_Q	0
 
-#define MAX_LENGTH 1000
-
 typedef struct qipc_qattr {
 	int capacity;         // maximum message capacity of the queue
 	int currentcount;         // number of messages present in queue
@@ -63,8 +61,8 @@ typedef struct qipc_message {
 	int dataLen;	//priority of the message
 	time_t expiryts;	//message expiry timestamp
 	time_t rests;	//message received timestamp
-	int recieverCount;	// total number f processes which are expected to consume this message
-	int pendingreceiverCount;	// how many processes are yet to consume the message
+	int recieverCount;// total number f processes which are expected to consume this message
+	int pendingreceiverCount;// how many processes are yet to consume the message
 } Qmsg;
 
 typedef struct QueueNode {
@@ -77,7 +75,7 @@ typedef struct Queue {
 	QueueAttr *attr;
 	Qnode *HEAD;
 	Qnode *TAIL;
-} Queue ;
+} Queue;
 
 typedef struct ProcessNode {
 	int pid;
@@ -99,22 +97,22 @@ typedef struct BlockedQ {
 #define Q_CREATE	00400
 #define Q_DROP	01000
 
-#define MAX_AUTH_ENTITIES	32
+#define MAX_AUTH_ENTITIES	8
 
 typedef struct gAuthEntity {
 	int auth;
 	gid_t gid;
-} gAuthEntity ;
+} gAuthEntity;
 
 typedef struct uAuthEntity {
 	int auth;
 	uid_t uid;
 } uAuthEntity;
 
-EXTERN int secure_q_gAuth_count;
-EXTERN int secure_q_uAuth_count;
-EXTERN int denied_public_q_gauth_count;
-EXTERN int denied_public_q_uauth_count;
+//Holds list of groups who can alter queue permissions
+EXTERN gid_t authorizedAdminGroups[MAX_AUTH_ENTITIES];
+//Holds list of users who can alter queue permissions
+EXTERN uid_t authorizedAdminUsers[MAX_AUTH_ENTITIES];
 
 //Holds group permits for secured queues
 EXTERN gAuthEntity* secure_q_gAuth_list[MAX_AUTH_ENTITIES];
@@ -126,7 +124,7 @@ EXTERN gid_t denied_public_q_gauth[MAX_AUTH_ENTITIES];
 //Holds users which are denied access to public queue
 EXTERN uid_t denied_public_q_uauth[MAX_AUTH_ENTITIES];
 
-EXTERN Queue* queue_arr[QIPC_MAX_Q_COUNT];	//holds array of pointers to all queues present
+EXTERN Queue* queue_arr[QIPC_MAX_Q_COUNT];//holds array of pointers to all queues present
 EXTERN int queue_count;	//count of current queues present
 
 endpoint_t g_arrNotificationPID[QIPC_MAX_NOTIFIER_COUNT][2];
@@ -144,7 +142,7 @@ int get_empty_q_slot();
 int check_queue_exist(char *);
 Queue * get_queue(char *);
 int add_to_queue(Queue *, Qmsg *);
-Qnode *get_msg_from_queue(Queue *, int , endpoint_t, endpoint_t);
+Qnode *get_msg_from_queue(Queue *, int, endpoint_t, endpoint_t);
 int clear_queue_entry(char *);
 void clear_queue_entry_idx(int);
 void remove_node(Queue *, Qnode *);
@@ -157,17 +155,29 @@ int f_intNotifyChk(pid_t *, int);
 
 //Auth related
 int parse_secure();
+void print_lists();
 int nextline(int fp);
 short groupHasSecureAuth(gid_t, int);
 short userHasSecureAuth(uid_t, int);
 short groupHasDeniedPublicAuth(gid_t);
 short userHasDeniedPublicAuth(uid_t);
+short addNewAdminGroup(gid_t);
+short addNewAdminUser(uid_t);
+short deleteAdminGroup(gid_t);
+short deleteAdminUser(uid_t);
+int updateGroupRights(gid_t, int);
+int updateUserRights(uid_t, int);
+short isUserAdmin(uid_t);
+short isGroupAdmin(uid_t);
+int addPublicDeniedGroup(gid_t);
+int addPublicDeniedUser(uid_t);
 
 // Blocked Receiver List related functions
 void add_to_blocked_receiver_list(int, int, int, int);
 void delete_from_blocked_receiver_list(int, int);
 int if_present_blocked_receiver_list(int, int);
 int check_for_deadlock(int, int, int);
+int blocking_adder_add(pid_t, int, int *, int);
 
 //stdlib funcs
 void free(void *);

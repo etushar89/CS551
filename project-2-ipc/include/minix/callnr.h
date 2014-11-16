@@ -120,4 +120,7 @@
 #define OPENQ             44
 #define CLOSEQ            45
 #define GETATTRQ	  57        
-#define SETATTRQ 	  56	
+#define SETATTRQ 	  56
+#define ADDAUTHUSERS	108
+#define AUTHPERM	109
+#define BLACKLISTPUBLICQ	105
