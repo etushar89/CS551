@@ -19,21 +19,58 @@
 int do_mqreqnotify() {
 	int req_no;
 	pid_t receiver_pid;
-
 	register struct mproc *rmp = mp;
-	req_no = m_in.m10_i1;
-	receiver_pid = rmp->mp_pid;
-	printf("\nProcess %d has requested for notification", receiver_pid);
+	char *name = (char *) malloc(QIPC_MAX_Q_NAME_LEN);
 
-	if (notifier_count == QIPC_MAX_NOTIFIER_COUNT) {
-		printf("\nError: Maximum capacity count reached");
-		return 0;
+	int indx = check_queue_exist(name);
+	printf("\nDEBUG: index = %d", indx);
+	if (indx >= 0) {
+		printf(
+				"\nDEBUG: Queue %s from which message is to be received found at %d.",
+				name, indx);
+		debug_list();
+		Queue *q = queue_arr[indx];
+	
+	//Auth check
+		if (q->attr->q_auth_type) {
+			printf("\nDEBUG: Queue type is secured");
+			if (!(userHasSecureAuth(rmp->mp_effuid, Q_READ)
+					|| groupHasSecureAuth(rmp->mp_effgid, Q_READ))) {
+				printf(
+						"\nERROR: Reading from Secure Queue permissions are denied to user with id=%d.",
+						rmp->mp_effuid);
+				return UNAUTHORIZED_OP;
+			}
+		} else if (q->attr->q_auth_type == 0) {
+			printf("\nDEBUG: Queue type is public");
+			if (userHasDeniedPublicAuth(rmp->mp_effuid)
+					|| groupHasDeniedPublicAuth(rmp->mp_effgid)) {
+				printf(
+						"\nERROR: Reading from Public Queue permissions are denied to user with id=%d.",
+						rmp->mp_effuid);
+				return UNAUTHORIZED_OP;
+			}
+		}
+
+		req_no = m_in.m10_i1;
+		receiver_pid = rmp->mp_pid;
+		printf("\nProcess %d has requested for notification", receiver_pid);
+
+		if (notifier_count == QIPC_MAX_NOTIFIER_COUNT) {
+			printf("\nError: Maximum capacity count reached");
+			return 0;
+		}
+
+		g_arrNotificationPID[notifier_count][0] = receiver_pid;
+		g_arrNotificationPID[notifier_count][1] = req_no;
+		notifier_count++;
+		return 1;
 	}
-
-	g_arrNotificationPID[notifier_count][0] = receiver_pid;
-	g_arrNotificationPID[notifier_count][1] = req_no;
-	notifier_count++;
-	return 1;
+	else{
+		printf("\nERROR: Queue named %s does not exist.", name);
+		debug_list();
+		return -1;
+	}
 }
 
 /**

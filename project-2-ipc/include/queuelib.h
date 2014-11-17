@@ -10,13 +10,14 @@
 #define setattr_queue  _setattr_queue
 #define getattr_queue  _getattr_queue
 
-int open_queue(char *qname, char *new_name) 
+int open_queue(char *qname, char *new_name, int queuetype) 
 {
 	message m;
 
 	m.m11_ca1=qname; //q name
- 	m.m11_i1 = strlen(qname); //q name len
- 	m.m11_i2 = 5; //q capacity
+ 	//m.m11_i1 = strlen(qname); //q name len
+ 	m.m11_i1 = queuetype;	
+	m.m11_i2 = 5; //q capacity
  	m.m11_i3 = 0; //q type (non)blocking
  
 	int i = _syscall(PM_PROC_NR, 44, &m);
@@ -44,6 +45,10 @@ int getattr_queue(char *qname, int *capacity, int *type)
         m.m11_i1 = strlen(qname); //q name len
 
 	int ret = _syscall(PM_PROC_NR, 57, &m);
+	if (ret==14) {
+		printf("\nERROR: Permission denied");
+		return -1;
+	}
 	if (ret != 11)
 		return -1;
 

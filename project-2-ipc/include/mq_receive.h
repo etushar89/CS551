@@ -35,7 +35,8 @@ void async_recieve( char *qname, int recid, int senderId)
 		printf("\nMessage for me is %s", data);
 	else if (ret == 7)
 	 	printf("\nNo message for this receiver in queue %s", qname);
-
+	else if(ret==14)
+		printf("\nERROR: Permission denied");
 }	
 
 #endif

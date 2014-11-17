@@ -60,7 +60,9 @@ void blocking_recieve( char *qname, int recid, int senderId)
 		printf("\nNo message for this receiver");
 		printf("\nBlocking this receiver will lead to DEADLOCK");
 		printf("\nRequest denied");
-	}		
+	}
+	else if(ret==14)
+		printf("\nERROR: Permission denied");		
 	else if (ret == 7)
 	 {
 		// no message for this receiver
